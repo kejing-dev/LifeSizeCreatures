@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:name=".platform.SpatialApplication"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.LifeSize"
+        tools:targetApi="31">
+
+        <activity
+            android:name=".platform.LaunchActivity"
+            android:exported="true"
+            android:theme="@style/Theme.LifeSize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Default spatial container: the field guide, a planar window in the Shared Space
+                 (design-package container: ON_PLAIN, 440 x 640 dp, system glass). The room is the
+                 secondary Mixed Stage "RoomStage", declared in Main.kt and opened from the guide. -->
+            <meta-data
+                android:name="pico.spatial.windowcontainer.id"
+                android:value="FieldGuide" />
+            <meta-data
+                android:name="pico.spatial.windowcontainer.style"
+                android:value="1" />
+            <meta-data
+                android:name="pico.spatial.windowcontainer.defaultsize"
+                android:value="440x640" />
+            <meta-data
+                android:name="pico.spatial.windowcontainer.defaultsize.unit"
+                android:value="dp" />
+            <meta-data
+                android:name="pico.spatial.windowcontainer.resizetype"
+                android:value="2" />
+            <meta-data
+                android:name="pico.spatial.windowcontainer.captionbar"
+                android:value="0" />
+            <meta-data
+                android:name="pico.spatial.windowcontainer.materialbackground"
+                android:value="1" />
+        </activity>
+
+        <meta-data android:name="icon.3d.list" android:resource="@array/icon_3d_list" />
+        <meta-data android:name="icon.sdf.list" android:resource="@array/icon_sdf_list" />
+    </application>
+
+</manifest>

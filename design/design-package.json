@@ -1,0 +1,893 @@
+{
+  "appId": "life-size-creatures",
+  "name": "真实比例动物 Life-size Creatures",
+  "nameZh": "真实比例动物",
+  "nameEn": "Life-size Creatures",
+  "packageName": "io.embodit.lifesize",
+  "version": "v1",
+  "source": "port",
+  "oneLiner": "图鉴是共享空间里的一扇普通窗口；点一只动物，应用进入全空间，点一下地板，它就按真实大小站进你的客厅：地上一条卷尺量出它多长，旁边站着一个和你一样高的「你」，比房间还大时直接告诉你大多少。点「退出全空间」回到共享空间。",
+  "category": "学习与文化",
+  "idea": "把 5 米长的大白鲨放进客厅，跟自己比一比",
+  "archetype": "B",
+  "container": {
+    "type": "ON_PLAIN + STAGE_MIXED",
+    "mode": "启动在 Shared Space：DefaultWindowContainer（ON_PLAIN 平面窗口）= 图鉴窗；点动物时 openStage(Mixed) 进入 Full Space（次级 Stage，透视），动物与房间里的一切都在 Stage 里；退出全空间 = closeStage 回 Shared Space",
+    "archetype": "B（浏览器型 + 次级 Stage「看一件」）；次级 Stage 是 Mixed，具备 D 的平面 / 头显能力",
+    "spaceChoice": "门 B 用户评论 2026-10-21：「展示动物的时候需要是 full space 模式，面板是 shared space」。图鉴不需要平面与头显，放在共享空间和别的应用并存；地板 / 天花板平面（PlaneTrackingManager）与头显高度（HMDTrackingProvider）只在 Full Space 可用，所以放动物时进全空间",
+    "windowModel": "1 个 ON_PLAIN 窗口（图鉴窗）+ 1 个次级 Stage（Mixed）。Stage 内是 3D 实体 + AttachmentPanel（尺寸签、信息卡），无 Toolbar / TabBar / Subwindow 附件",
+    "notes": [
+      "容器选择是架构决定（本版由门 B 用户评论改定），实现站不得改",
+      "平台文档（spatial-design_space-status）：进入全空间时系统隐藏其他应用的内容，应用「可以选择」让自己的窗口从共享空间保留进全空间——具体接口文档未写，标「未确认」。研发站第一步 spike：openStage(Mixed) 后图鉴窗是否仍可见、可点；不行则走退路：Stage 内用同一个 Composable 挂一块图鉴 AttachmentPanel（v1.1 方案：左前方 30°、1.0 m、懒跟随），并在其顶栏放「退出全空间」",
+      "openStage 返回 NotAllowed / Error 时留在共享空间，提示行报错（S13 → S0）",
+      "主窗口 ON_DESTROY 时 closeStage（文档示例写法）；Stage 关闭时停 provider、清动物",
+      "Stage 内不用浮层对话框（AlertDialog 不显示内容、SnackbarHost 不可用——千里眼实测）：提示一律在图鉴窗底部提示行或信息卡内联",
+      "Stage 里的附着面板从预建池里取，隐藏而不是移除；面板朝向由应用每帧写到承载实体，不用 LookAtComponent（空间尺实测）",
+      "面板尺寸按 1 dp = 0.8 mm 给出；单块面板高度 ≤ 720 dp（模拟器实测）；ON_PLAIN 窗口尺寸由系统 dp 决定"
+    ],
+    "permissions": [],
+    "permissionsNote": "空间尺（同骨架、同 PlaneTrackingManager）的 Manifest 未声明额外权限即可在模拟器拿到平面；真机是否弹空间数据授权「未确认」，若有拒绝路径走状态 S10",
+    "lifecycle": "共享空间：只有窗口，不启动任何 provider。进入全空间（Stage 打开）→ 启动 PlaneTrackingManager + HMDTrackingProvider；退出全空间 / 退后台 / 关窗口 → closeStage、stop 两个 provider、停动画、清空动物与 Stage 面板；不做跨会话持久化"
+  },
+  "referenceRepo": {
+    "primary": "C:/Users/Admin/Downloads/spatial-ruler（github.com/kejing-dev/SpatialRuler）",
+    "take": [
+      "Mixed Stage 启动、PlaneTracker.kt（PlaneTrackingManager.subscribeAnchorUpdate / start / stop）",
+      "地板射线求交与「看向地板捏合」的系统指针路径（gaze + pinch，模拟器鼠标可注入）",
+      "卷尺实体（黄色尺带 + 端头刻度 + 读数牌）与读数牌的按距离恒定视角缩放",
+      "面板池、每帧朝向写入的 ECS System、懒跟随面板（T11）"
+    ],
+    "secondary": "TripoSpatial（pico-conjure）「放进房间」的模型加载与落地流程，仅作参照",
+    "assets": "模型要写实（门 B 用户评论 2026-10-21）。找模型按优先级：① Sketchfab：筛 Downloadable，许可 CC0 或 CC BY（写实扫描 / 手工模型多，常带骨骼与动画，可下 glTF；CC BY 在「关于」署名）；② Smithsonian 3D（3d.si.edu）Open Access 部分 CC0：真实标本与恐龙骨架扫描，多为静态无动画；③ MorphoSource：科研扫描精度高，许可逐个核，禁商用的不用；④ Objaverse：Sketchfab 来源合集，便于批量找，许可以原作者为准；⑤ Quaternius / Poly Pizza CC0 低多边形：只作临时占位。找不到写实模型的动物先用「真实比例白模」：无贴图白色哑光材质，体型、肩高 / 髋高、头身比按 roster 真实数据建，拿到正式模型直接替换（实体结构与缩放规则不变）。下载模型的单位常不准：一律按包围盒统一缩放到 lengthM / topM，不信文件自带尺寸"
+  },
+  "frame": {
+    "user": "家长带 6–12 岁孩子，或对动物 / 恐龙好奇的成年人；站在自家客厅或卧室，一次 5–10 分钟",
+    "job": "回答一个问题：这只动物真的有多大？——比我高吗、比沙发长吗、房间装得下吗",
+    "affordances": [
+      {
+        "affordance": "scale",
+        "counterfactual2D": "手机屏上写「4.6 m」或放一个 3D 模型可转可缩，数字没有体感，模型永远和屏幕一样大",
+        "whySpatial": "1:1 站在你家地板上，和沙发、门框、你自己同处一个尺度"
+      },
+      {
+        "affordance": "body",
+        "counterfactual2D": "图片里放一个人形剪影做比例尺",
+        "whySpatial": "剪影就是按你此刻头显高度生成的「你」，站在动物身边；你可以走过去和它并排"
+      },
+      {
+        "affordance": "position",
+        "counterfactual2D": "无法知道你家天花板多高",
+        "whySpatial": "读到最低 CEILING 平面，直接画出天花板线并说「比你的房间还高 1.4 m」"
+      }
+    ],
+    "assumptions": [
+      {
+        "text": "Quaternius 三个包里有 8 只中的大部分（柴犬 / 狼 / 马 / 鹿 / 恐龙）；大白鲨不一定在鱼包里",
+        "confidence": "中",
+        "ifWrong": "研发站换同尺度 CC0 / CC-BY 模型，CC-BY 的在「关于」行署名；不换动物"
+      },
+      {
+        "text": "用户站着体验；头显高度 + 0.10 m ≈ 身高",
+        "confidence": "中",
+        "ifWrong": "坐着时「你」偏矮——取最近 10 s 内的最大头显高度，钳制 1.00–2.10 m"
+      },
+      {
+        "text": "能为 8 只中的大部分找到写实、可商用的开源模型",
+        "confidence": "中",
+        "ifWrong": "缺的用真实比例白模上线 v1，尺度价值不受影响；后续替换模型不改代码结构"
+      }
+    ]
+  },
+  "alternatives": [
+    {
+      "id": "A",
+      "name": "角落图鉴 + 地板真实比例（选中）",
+      "container": "Mixed Stage",
+      "summary": "左前方一块小图鉴窗；动物 1:1 落地，卷尺 + 「你」剪影 + 天花板线",
+      "verdict": "superseded",
+      "why": "唯一同时拿到地板、天花板、头显高度的方案；交互三步（点图块 → 看地板 → 捏）（v1.2 起被 A2 取代：用户要求面板留在共享空间）"
+    },
+    {
+      "id": "A2",
+      "name": "共享空间图鉴窗 + 放动物时进全空间（门 B 后选中）",
+      "container": "ON_PLAIN + 次级 Mixed Stage",
+      "summary": "图鉴是普通窗口，和别的应用并存；点动物才进全空间",
+      "verdict": "chosen",
+      "why": "门 B 用户评论指定；图鉴本身不需要平面，留在共享空间更轻；进出全空间有明确入口与出口"
+    },
+    {
+      "id": "B",
+      "name": "桌面缩微动物园（体积窗口）",
+      "container": "Shared Space 体积窗口",
+      "summary": "体积窗里一排缩小动物，点「放大」才变真实",
+      "verdict": "rejected",
+      "why": "体积窗拿不到平面和头显位姿，放大后也不能落地比身高；退化成 3D 查看器，正是参照产品不靠的那一点"
+    },
+    {
+      "id": "C",
+      "name": "自然博物馆大厅（全沉浸）",
+      "container": "Full Stage 虚拟环境",
+      "summary": "替换房间为博物馆大厅，动物站在展台上",
+      "verdict": "rejected",
+      "why": "去掉了「你的房间」这个尺子——五问第 1 问的价值来源；且门户叙事在 port.drop 里"
+    },
+    {
+      "id": "D",
+      "name": "无面板手势轮盘",
+      "container": "Mixed Stage",
+      "summary": "张开手掌弹出动物轮盘，不要常驻面板",
+      "verdict": "rejected",
+      "why": "可发现性差、孩子不会；模拟器手势不稳；违反傻瓜式要求"
+    }
+  ],
+  "informationArchitecture": {
+    "levels": [
+      "图鉴窗（唯一常驻 UI）：8 个动物图块 + 语言切换 + 清空 + 一行提示",
+      "房间里的动物（≤ 2 只）：每只带 尺寸签 + 地面卷尺 + 「你」剪影（只给离你最近的那只）",
+      "信息卡（点动物才出现，同时最多 1 张）：中英名、学名、三项数据、栖息地、一句冷知识、3 个操作"
+    ],
+    "rule": "没有设置页、没有教程页、没有账户。首次只有一行提示「选一只动物」"
+  },
+  "roster": {
+    "rule": "8 只，按体长从小到大排列（柴犬 0.7 · 灰狼 1.4 · 伶盗龙 2.0 · 马鹿 2.0 · 马 2.4 · 大白鲨 4.6 · 三角龙 8.5 · 霸王龙 12.3）；数值取公开百科常见成体值（研发站对照维基百科 / 大英百科核一遍，误差 ±10% 内不改）。lengthKind：哺乳动物用头体长（卷尺止于尾根），恐龙与鲨鱼用全长（卷尺到尾尖）。topM = 模型包围盒顶高（含悬浮），天花板比较用它。模型来源与白模规则见 modelSourcing，不换动物。lengthRefM 由研发站量模型后填写",
+    "animals": [
+      {
+        "id": "shiba",
+        "zh": "柴犬",
+        "en": "Shiba Inu",
+        "latin": "Canis familiaris",
+        "lengthM": 0.7,
+        "heightM": 0.4,
+        "heightKind": "肩高",
+        "massKg": "8–10",
+        "habitatZh": "家犬，原产日本",
+        "habitatEn": "Domestic dog, from Japan",
+        "factZh": "体重和一个 1 岁小孩差不多。",
+        "factEn": "About as heavy as a 1-year-old child.",
+        "modelSource": "按 modelSourcing 找写实模型（未确认具体来源）；找不到先用真实比例白模",
+        "reaction": "跳 / 摇尾（包内 Jump 等动画）",
+        "topM": 0.62,
+        "lengthKind": "头体长（不含尾）",
+        "sound": "短吠（CC0 音效）",
+        "lengthRefM": 0.7,
+        "lengthRefNote": "研发站 2026-10-21：在引擎渲染出的包围盒上量，测量段 = 包围盒体长 × 0.93（尾根），按 lengthM 等比缩放后实测 长×高×宽 = 0.75×0.6×0.38 m；0|standing_0 idle, 0|shake_0 react"
+      },
+      {
+        "id": "wolf",
+        "zh": "灰狼",
+        "en": "Gray Wolf",
+        "latin": "Canis lupus",
+        "lengthM": 1.4,
+        "heightM": 0.8,
+        "heightKind": "肩高",
+        "massKg": "30–50",
+        "habitatZh": "北美、欧亚的森林与草原",
+        "habitatEn": "Forests and grasslands of North America and Eurasia",
+        "factZh": "用后腿站起来，和大人差不多高。",
+        "factEn": "Standing on its hind legs, it is about as tall as an adult.",
+        "modelSource": "按 modelSourcing 找写实模型（未确认具体来源）；找不到先用真实比例白模",
+        "reaction": "嚎叫",
+        "topM": 1.05,
+        "lengthKind": "头体长（不含尾）",
+        "sound": "嚎叫（CC0 音效）",
+        "lengthRefM": 1.4,
+        "lengthRefNote": "研发站 2026-10-21：在引擎渲染出的包围盒上量，测量段 = 包围盒体长 × 0.85（尾根），按 lengthM 等比缩放后实测 长×高×宽 = 1.65×0.98×1.05 m；static"
+      },
+      {
+        "id": "velociraptor",
+        "zh": "伶盗龙（迅猛龙）",
+        "en": "Velociraptor",
+        "latin": "Velociraptor mongoliensis",
+        "lengthM": 2.0,
+        "heightM": 0.5,
+        "heightKind": "髋高",
+        "massKg": "约 15",
+        "habitatZh": "白垩纪晚期，蒙古戈壁",
+        "habitatEn": "Late Cretaceous, Gobi (Mongolia)",
+        "factZh": "真实的它只到你膝盖，比电影里小得多。",
+        "factEn": "The real one only reaches your knee — far smaller than in the movies.",
+        "modelSource": "按 modelSourcing 找写实模型（未确认具体来源）；找不到先用真实比例白模",
+        "reaction": "攻击 / 叫",
+        "topM": 0.75,
+        "lengthKind": "全长",
+        "sound": "嘶叫（CC0 音效）",
+        "lengthRefM": 2.0,
+        "lengthRefNote": "研发站 2026-10-21：在引擎渲染出的包围盒上量，测量段 = 包围盒体长 × 1.0（尾尖），按 lengthM 等比缩放后实测 长×高×宽 = 2.0×1.04×0.51 m；static"
+      },
+      {
+        "id": "stag",
+        "zh": "马鹿（公）",
+        "en": "Red Deer (stag)",
+        "latin": "Cervus elaphus",
+        "lengthM": 2.0,
+        "heightM": 1.2,
+        "heightKind": "肩高",
+        "massKg": "160–240",
+        "habitatZh": "欧洲、亚洲的林地",
+        "habitatEn": "Woodlands of Europe and Asia",
+        "factZh": "鹿角每年脱落再长，一季能长近 1 米。",
+        "factEn": "Its antlers fall off and regrow every year — up to about 1 m in a season.",
+        "modelSource": "按 modelSourcing 找写实模型（未确认具体来源）；找不到先用真实比例白模",
+        "reaction": "抬头 / 踏步",
+        "topM": 2.1,
+        "lengthKind": "头体长（不含尾）",
+        "sound": "鹿鸣（CC0 音效）",
+        "lengthRefM": 2.0,
+        "lengthRefNote": "研发站 2026-10-21：在引擎渲染出的包围盒上量，测量段 = 包围盒体长 × 0.98（尾根），按 lengthM 等比缩放后实测 长×高×宽 = 2.04×2.39×1.05 m；static"
+      },
+      {
+        "id": "horse",
+        "zh": "马",
+        "en": "Horse",
+        "latin": "Equus caballus",
+        "lengthM": 2.4,
+        "heightM": 1.6,
+        "heightKind": "肩高",
+        "massKg": "380–1000",
+        "habitatZh": "全世界驯养",
+        "habitatEn": "Domesticated worldwide",
+        "factZh": "马站着也能睡觉。",
+        "factEn": "Horses can sleep standing up.",
+        "modelSource": "按 modelSourcing 找写实模型（未确认具体来源）；找不到先用真实比例白模",
+        "reaction": "扬蹄 / 甩头",
+        "topM": 2.25,
+        "lengthKind": "头体长（不含尾）",
+        "sound": "嘶鸣（CC0 音效）",
+        "lengthRefM": 2.4,
+        "lengthRefNote": "研发站 2026-10-21：在引擎渲染出的包围盒上量，测量段 = 包围盒体长 × 0.78（尾根），按 lengthM 等比缩放后实测 长×高×宽 = 3.08×2.48×0.83 m；static"
+      },
+      {
+        "id": "shark",
+        "zh": "大白鲨",
+        "en": "Great White Shark",
+        "latin": "Carcharodon carcharias",
+        "lengthM": 4.6,
+        "heightM": 1.5,
+        "heightKind": "身体高度（悬浮显示，腹部离地 0.6 m；topM 含悬浮）",
+        "massKg": "680–1100",
+        "habitatZh": "全球温带近海",
+        "habitatEn": "Temperate coastal seas worldwide",
+        "factZh": "一生会换掉上万颗牙。",
+        "factEn": "It sheds tens of thousands of teeth in a lifetime.",
+        "modelSource": "按 modelSourcing 找写实模型（未确认具体来源）；找不到先用真实比例白模",
+        "reaction": "甩尾 / 张嘴",
+        "floating": true,
+        "topM": 2.1,
+        "lengthKind": "全长",
+        "sound": "水流 / 甩尾声（CC0 音效）",
+        "lengthRefM": 4.6,
+        "lengthRefNote": "研发站 2026-10-21：在引擎渲染出的包围盒上量，测量段 = 包围盒体长 × 1.0（尾尖），按 lengthM 等比缩放后实测 长×高×宽 = 4.6×1.96×2.07 m；Swimming01.001 idle; engine poses it upright, turned +90 deg about X"
+      },
+      {
+        "id": "triceratops",
+        "zh": "三角龙",
+        "en": "Triceratops",
+        "latin": "Triceratops horridus",
+        "lengthM": 8.5,
+        "heightM": 3.0,
+        "heightKind": "髋高",
+        "massKg": "6000–12000",
+        "habitatZh": "白垩纪晚期，北美西部",
+        "habitatEn": "Late Cretaceous, western North America",
+        "factZh": "光头骨就有 2 米多长。",
+        "factEn": "Its skull alone is over 2 m long.",
+        "modelSource": "按 modelSourcing 找写实模型（未确认具体来源）；找不到先用真实比例白模",
+        "reaction": "低头顶角",
+        "topM": 3.0,
+        "lengthKind": "全长",
+        "sound": "低吼（CC0 音效）",
+        "lengthRefM": 8.5,
+        "lengthRefNote": "研发站 2026-10-21：在引擎渲染出的包围盒上量，测量段 = 包围盒体长 × 1.0（尾尖），按 lengthM 等比缩放后实测 长×高×宽 = 8.5×3.38×2.8 m；static"
+      },
+      {
+        "id": "trex",
+        "zh": "霸王龙",
+        "en": "Tyrannosaurus rex",
+        "latin": "Tyrannosaurus rex",
+        "lengthM": 12.3,
+        "heightM": 3.9,
+        "heightKind": "髋高（头部更高）",
+        "massKg": "约 8400",
+        "habitatZh": "白垩纪晚期，北美西部",
+        "habitatEn": "Late Cretaceous, western North America",
+        "factZh": "一颗牙连牙根能有一根香蕉那么长。",
+        "factEn": "One tooth, root included, can be as long as a banana.",
+        "modelSource": "按 modelSourcing 找写实模型（未确认具体来源）；找不到先用真实比例白模",
+        "reaction": "吼叫",
+        "topM": 4.0,
+        "lengthKind": "全长",
+        "sound": "吼叫（CC0 音效）",
+        "lengthRefM": 12.3,
+        "lengthRefNote": "研发站 2026-10-21：在引擎渲染出的包围盒上量，测量段 = 包围盒体长 × 1.0（尾尖），按 lengthM 等比缩放后实测 长×高×宽 = 12.3×5.17×3.17 m；idle / roar; renders at 1:100 once animated, measured after 1.5 s"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": "fieldGuide",
+      "name": "图鉴窗 Field Guide",
+      "surface": "Shared Space 的 ON_PLAIN 平面窗口（DefaultWindowContainer），系统玻璃背景（Material.Regular，enableMaterialBackground=true）、系统标题栏；进入全空间后保留在用户原来放的位置继续当图鉴（保留接口未确认，退路见 container.notes）",
+      "sizeDp": {
+        "default": [
+          440,
+          640
+        ],
+        "min": [
+          400,
+          600
+        ],
+        "max": [
+          520,
+          760
+        ]
+      },
+      "physicalM": null,
+      "regions": [
+        "顶栏 56 dp：共享空间时 = 标题「真实比例动物」(titleMedium) · 语言分段 [中 | EN]；全空间时 = [退出全空间]（sui-button small，唯一带字的按钮，醒目） · [中 | EN] · 清空 🗑",
+        "图块网格：2 列 × 4 行，每块 200 × 112 dp，间距 8 dp；块内：动物剪影（与一个小人剪影同比例画出，56 dp 高区域）+ 名字 (titleSmall) + 体长 (labelMedium，如「4.6 m」)；已放下的块右上角 ✓ 小点（passable）；当前选中块 interaction 色 2 dp 外环",
+        "提示行 48 dp：一行 bodyMedium，随状态换文案（见 states[].panelHint）；不可用时带一个 sui-circular-progress 或 ⚠"
+      ],
+      "densityCap": "8 个图块 + 3 个顶栏控件 + 1 行提示；不加分类页签、不加搜索",
+      "states": [
+        "S0",
+        "S13",
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S8",
+        "S10",
+        "S11",
+        "S12"
+      ]
+    },
+    {
+      "id": "sizeTag",
+      "name": "尺寸签 Size Tag",
+      "surface": "AttachmentPanel，玻璃；挂在动物包围盒顶部上方 0.15 m（超过天花板时改挂在天花板线下 0.15 m、动物身侧）；只绕竖直轴朝向头部；按观看距离恒定视角缩放（空间尺规则，距离钳制 0.45–6 m）",
+      "sizeDp": [
+        320,
+        104
+      ],
+      "content": "第 1 行：名字 (titleMedium)；第 2 行：「长 4.6 m · 高 1.5 m」(bodyMedium，长标 lengthKind、高标肩高 / 髋高)；第 3 行（只在触发时，alert 色）：「比你的房间还高 1.4 m」/「比你的房间还长 6.3 m」（两者都超时显示高的那条，信息卡里两条都列）/ 徽章「1:3 缩小显示」",
+      "states": [
+        "S4",
+        "S6",
+        "S7",
+        "S8"
+      ]
+    },
+    {
+      "id": "infoCard",
+      "name": "信息卡 Info Card",
+      "surface": "AttachmentPanel，玻璃；眼高、距你 1.2 m，放在你→动物视线方向偏左 25°（不挡住动物转身反应）；只绕竖直轴朝向头部；同一时刻最多 1 张",
+      "sizeDp": [
+        480,
+        420
+      ],
+      "physicalM": [
+        0.38,
+        0.34
+      ],
+      "content": "标题行：中英名 (titleLarge) + 学名 (labelMedium 斜体) + 关闭 ×；三行数据：体长 / 高度（标明肩高 / 髋高）/ 体重；栖息地一行；冷知识一行 (bodyMedium)；比例分段 [真实 1:1 | 装进房间 1:n]（只在该动物超高或超长时出现）；底部 2 个图标键：转 90° ⟳ · 送回图鉴 ↩",
+      "states": [
+        "S5",
+        "S7"
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "id": "animal",
+      "kind": "ModelComponent (glb)",
+      "count": "≤ 2",
+      "scale": "1:1（S7 时 1:n）",
+      "components": [
+        "Model",
+        "AnimationResourceLibrary / 骨骼动画（Idle 循环 + 1 个反应动画）",
+        "GroundShadowComponent(casts=true)",
+        "Collision（包围盒，供点击与拖动）",
+        "InteractableComponent / HoverEffectComponent"
+      ],
+      "budget": "写实 GLB，每只 2–5 万三角面、贴图 ≤ 2048²；两只同屏 ≤ 10 万；同种两只不允许（规则见 I3）。缩放规则：缩放比例 = lengthM / lengthRefM（lengthRefM = 研发站在模型上量出的吻端到 lengthKind 终点的距离，写回 roster），整体等比缩放；缩放后包围盒高度与 topM 偏差 > 10% 则记为「需换模型」，不做非等比拉伸。S3 期间关闭所有动物的 Collision / Interactable；隐藏的动物与面板承载实体同时停用（空间尺实测：隐藏面板不停用承载实体会抢指针）。S1 找地板期间预加载 8 个模型（总量 ≤ 40 万面；超了改为预加载前 4 只 + 其余按需，S12 兜底）",
+      "modelSourcing": "写实优先：① Sketchfab（Downloadable，CC0 / CC BY，CC BY 署名）② Smithsonian 3D Open Access（CC0，多为静态）③ MorphoSource（逐个核许可，禁商用不用）④ Objaverse（许可以原作者为准）⑤ Quaternius / Poly Pizza 仅临时占位。找不到写实模型 → 真实比例白模占位（无贴图白色哑光，体型 / 肩高或髋高 / 头身比按 roster 建，按包围盒缩放到 lengthM / topM），拿到正式模型直接替换。详见顶层 modelSourcing"
+    },
+    {
+      "id": "floorTape",
+      "kind": "细长盒 + 两端刻度 + 中点读数牌",
+      "spec": "宽 0.025 m、厚 0.004 m、卷尺黄 tapeYellow，贴地 2 mm，从吻端到 lengthKind 终点（哺乳动物到尾根，恐龙与鲨鱼到尾尖），动物旋转时跟着转；每 1 m 一道 0.06 m 短刻度；读数牌复用空间尺读数牌样式，内容「4.6 m」"
+    },
+    {
+      "id": "youSilhouette",
+      "kind": "竖立的半透明人形面片（alpha 贴图）",
+      "spec": "竖立的半透明人形面片，高 = 最近 10 s 内的最大头显高度 + 0.10 m（钳制 1.00–2.10 m；家长递给孩子后会跟着变；摘戴事件 API 未确认，不依赖）。站在离你最近那只动物的吻端外 0.4 m（沿体长轴；被另一只挡住时改尾端），与动物中心离你一样远——同一深度并排，避免透视放大；面朝你。颜色 youCyan 35% 填充 + 80% 描边；脚下标签「你 1.68 m」(labelMedium)；只给一只动物配一个"
+    },
+    {
+      "id": "ceilingLine",
+      "kind": "天花板高度的虚线框",
+      "spec": "当 动物 topM（缩放后包围盒顶） > 天花板净高 时出现：在最低 CEILING 平面高度画一圈虚线矩形（动物包围盒投影 + 0.2 m 外扩），alert 色；动物照常 1:1 显示（会「穿」过天花板）。CEILING 平面在动物放下后才上报时，收到即重查一次"
+    },
+    {
+      "id": "ghost",
+      "kind": "放置幽灵",
+      "spec": "只在射线通道（手柄射线 / 手部射线；模拟器切手柄模式）显示：S3 时跟着射线落点在地板上移动——占地框（体长 × 体宽）半透明 + 预览卷尺 + 吻端朝向箭头。眼手通道（注视 + 捏合）拿不到悬停位置（空间尺 design-doc §3 实测），不显示幽灵：点一下地板直接落在命中点。推远：落下时侧身对你，落点到你的水平距离 < 体宽/2 + 0.5 m 时沿视线推到这个距离；与已有动物占地框重叠时横向推开到不重叠"
+    },
+    {
+      "id": "floorCatcher",
+      "kind": "地板接收体（不可见）",
+      "spec": "FLOOR 高度放一块约 30 × 30 m、厚 0.02 m 的薄盒碰撞体 + InteractableComponent，命中点投影回 FLOOR 高度。原因：平面自带静态网格碰撞体单面、从屋里打不中（空间尺 spike 实测）。只在 S3 启用"
+    }
+  ],
+  "states": [
+    {
+      "id": "S0",
+      "name": "共享空间图鉴 Guide in Shared Space",
+      "reach": "启动；或退出全空间",
+      "panelHint": "点一只动物，放进你的房间",
+      "visible": "共享空间里只有图鉴窗（和别的应用并存）：标题 · [中|EN]、8 个图块、提示行；没有 🗑、没有退出键；房间里没有任何 3D 内容",
+      "qaCapture": "冷启动截图：窗口在共享空间，旁边可见其他应用窗口 / 透视；debug 广播 room=S0",
+      "exits": [
+        "点图块 → S13"
+      ]
+    },
+    {
+      "id": "S13",
+      "name": "进入全空间中 Entering Full Space",
+      "reach": "共享空间里点图块（openStage Mixed 等待返回）",
+      "panelHint": "正在进入全空间…（被点图块转圈）",
+      "visible": "被点图块选中外环 + 环形进度，其余图块置灰",
+      "qaCapture": "点图块后立刻截；或 debug 广播 room=S13 + freeze=1",
+      "exits": [
+        "Allowed → S1",
+        "NotAllowed / Error → S0 + 提示行 error"
+      ]
+    },
+    {
+      "id": "S1",
+      "name": "找地板 Finding floor",
+      "reach": "进入全空间后（Stage 已打开），FLOOR 平面尚未返回",
+      "panelHint": "环顾一下房间，正在找地板…（带环形进度）",
+      "visible": "图鉴窗；8 个图块置灰（LocalDisableAlpha 0.3）",
+      "qaCapture": "冷启动后 0–2 s 截图；或 debug 广播 state=S1",
+      "exits": [
+        "收到 FLOOR → S3（放进入时选的那只）或 S2",
+        "20 s 没有 FLOOR → S10",
+        "[退出全空间] → S0"
+      ]
+    },
+    {
+      "id": "S2",
+      "name": "全空间空房间 Empty room",
+      "reach": "全空间里房间没有动物：清空 / 送回最后一只",
+      "panelHint": "选一只动物",
+      "visible": "图鉴窗，图块全部可点，无 ✓",
+      "qaCapture": "图鉴窗全貌：标题、[中|EN]、🗑、8 块（柴犬 0.7 m … 霸王龙 12.3 m）、提示行",
+      "exits": [
+        "点图块 → S3",
+        "[退出全空间] → S0"
+      ]
+    },
+    {
+      "id": "S3",
+      "name": "放置中 Placing",
+      "reach": "点某个图块",
+      "panelHint": "点一下地板放下 · 再点一次取消",
+      "visible": "选中块 interaction 外环；射线通道时地板上幽灵（占地框 + 预览卷尺 + 朝向箭头）跟着射线；眼手通道无幽灵；所有动物暂不可点",
+      "qaCapture": "切手柄模式、射线对着地板：幽灵在地板上、选中块有外环；眼手模式只截选中外环 + 提示行",
+      "exits": [
+        "点地板 → 房间态多一只（模型未就绪先进 S12）",
+        "重放已有动物（I3）：原位那只淡出、新位置出现，数量不变，不触发 I9 替换",
+        "再点同一块 → 回前态",
+        "点另一块 → 换成另一只"
+      ]
+    },
+    {
+      "id": "S4",
+      "name": "比身高 Side by side",
+      "reach": "房间里正好一只",
+      "panelHint": "点动物看看它 · 捏住可拖动",
+      "visible": "动物 1:1 落地、侧身对你（体长方向与你视线垂直）、播放 Idle；地面卷尺；「你」剪影在吻端外 0.4 m 同一深度并排 + 「你 1.68 m」；尺寸签「马 · 长 2.4 m · 高 1.6 m」；对应图块 ✓",
+      "qaCapture": "放马：截到马、卷尺读数、剪影、尺寸签同框；剪影与动物同一深度并排（站在吻端外 0.4 m）",
+      "exits": [
+        "点动物 → S5",
+        "放第二只 → S8",
+        "捏住移动 → S9",
+        "↩ / 🗑 → S2"
+      ]
+    },
+    {
+      "id": "S5",
+      "name": "信息卡 Info card",
+      "reach": "点任意一只动物",
+      "panelHint": "点动物看看它 · 捏住可拖动",
+      "visible": "动物转身面向你（只转 yaw，0.5 s）+ 播放一次反应动画与叫声，3 s 后转回原朝向；信息卡在你→动物视线偏左 25°、眼高、1.2 m",
+      "qaCapture": "点柴犬：截信息卡（柴犬 / Shiba Inu / Canis familiaris、三行数据、栖息地、冷知识、⟳ ↩ ×）+ 柴犬面向镜头",
+      "exits": [
+        "× → 回前态",
+        "⟳ → 动物转 90°（卷尺跟转），卡片留着",
+        "↩ → 移除该动物，回前态（少一只）",
+        "超出房间时分段 → 切 1:1 / 1:n"
+      ]
+    },
+    {
+      "id": "S6",
+      "name": "超出房间 Bigger than your room",
+      "reach": "任一只动物 topM > 天花板净高，或体长 > 地板沿吻尾轴跨度（动物标记 tooBig=true、scaleN=1）",
+      "panelHint": "它比你的房间还大！点它可以缩小装进来",
+      "visible": "动物 1:1（头 / 背穿过天花板，尾巴穿墙）；超高时天花板一圈 alert 虚线框；尺寸签第 3 行「比你的房间还高 1.4 m」或「比你的房间还长 6.3 m」，超高时签挂在天花板线下",
+      "qaCapture": "放霸王龙：截虚线框 + 尺寸签第 3 行；另截三角龙（超高 + 超长）",
+      "exits": [
+        "点动物 → S5（信息卡多出比例分段）",
+        "分段选「装进房间」→ S7",
+        "↩ / 🗑 → 少一只"
+      ]
+    },
+    {
+      "id": "S7",
+      "name": "装进房间 Scaled to fit",
+      "reach": "超出房间的那只在信息卡比例分段选「装进房间」（动物标记 scaleN=n）",
+      "panelHint": "已缩小显示 · 数字仍是真实大小",
+      "visible": "该动物按 1:n 缩小（n 见 I12，例霸王龙 1:3）；卷尺按缩小后长度画但读数写真实值；尺寸签第 3 行变 alert 徽章「1:3 缩小显示」；「你」剪影保持真实身高；天花板虚线框隐藏",
+      "qaCapture": "截霸王龙 1:n + 徽章 + 信息卡分段选中「装进房间」",
+      "exits": [
+        "分段选「真实 1:1」→ S6",
+        "× → 留在 S7（卡片关、缩小保留）",
+        "↩ / 🗑 / 拖动 / 放第二只 → 同房间态规则"
+      ]
+    },
+    {
+      "id": "S8",
+      "name": "两只比大小 Two to compare",
+      "reach": "房间里已有一只时再放一只",
+      "panelHint": "最多两只 · 再放会替换先放的那只",
+      "visible": "两只并排各带卷尺和尺寸签；「你」剪影只跟离你最近的那只；两个图块 ✓",
+      "qaCapture": "放大白鲨 + 柴犬：两只同框、两条卷尺读数",
+      "exits": [
+        "放第三只 → 先放的那只淡出 0.3 s 后移除，提示行 3 s「先放的狼回图鉴了」，仍是 S8",
+        "↩ 送回其中一只 → S4",
+        "捏住移动 → S9",
+        "🗑 → S2"
+      ]
+    },
+    {
+      "id": "S9",
+      "name": "拖动中 Dragging",
+      "reach": "对动物捏住并移动超过约 2 cm（只看位移，不看按住时长）",
+      "panelHint": "松手放下",
+      "visible": "动物沿地板平移（射线：跟射线与地板交点；眼手：dragAmount 换算的指向线与地板交点），不离地、不旋转；卷尺与剪影跟随；尺寸签暂隐",
+      "qaCapture": "拖动中截图（模拟器鼠标按住拖）",
+      "exits": [
+        "松手 → 回前态，重查超出房间"
+      ]
+    },
+    {
+      "id": "S10",
+      "name": "找不到地板 No floor",
+      "reach": "20 s 内没有 FLOOR 平面；或平面追踪启动失败 / 被拒",
+      "panelHint": "没找到地板。请先在系统设置里画好房间边界，再点重试",
+      "visible": "提示行变 error 色 ⚠ + [重试] 小按钮；图块保持置灰",
+      "qaCapture": "debug 广播 state=S10，或模拟器在无房间时启动",
+      "exits": [
+        "[重试] → S1",
+        "[退出全空间] → S0"
+      ]
+    },
+    {
+      "id": "S11",
+      "name": "英文界面 English",
+      "reach": "顶栏分段点 EN（默认跟随系统语言）",
+      "panelHint": "Pick an animal / Tap the floor to place …",
+      "visible": "图鉴窗、尺寸签、信息卡、「你」标签全部英文；数字单位不变（m / kg）",
+      "qaCapture": "EN 下截 S2 图鉴窗 + S5 信息卡各一张",
+      "exits": [
+        "点 中 → 中文"
+      ]
+    },
+    {
+      "id": "S12",
+      "name": "加载中 Loading model",
+      "reach": "S3 落下时该模型还没预加载完",
+      "panelHint": "正在把它带进来…（图块角上环形进度）",
+      "visible": "落点处先只显示卷尺与占地框，模型到了再 0.4 s 放大出现；加载失败时提示行变 error「这只没带来，请再试一次」并回前态",
+      "qaCapture": "debug 广播 slowload=1 后放任意一只",
+      "exits": [
+        "加载完 → 房间态",
+        "失败 → 前态 + 错误提示"
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "id": "I1",
+      "name": "选动物",
+      "trigger": "点图鉴图块：共享空间时 = I14 进入全空间并预选这只；全空间时 = 进入 S3",
+      "to": "S13 | S3",
+      "emulator": "模拟器可验证"
+    },
+    {
+      "id": "I2",
+      "name": "放下",
+      "trigger": "眼手：点一下地板 → 直接落在命中点；手柄 / 手部射线：先看到幽灵跟着射线，扣扳机 / 捏合落下。命中由 floorCatcher 接收",
+      "to": "S4|S6|S8",
+      "emulator": "模拟器可验证（眼手：PostMessage 鼠标注入点击；幽灵要切手柄模式验收）"
+    },
+    {
+      "id": "I3",
+      "name": "取消放置",
+      "trigger": "S3 时再点同一图块 = 取消放置（优先级最高）；不在 S3 时点一个已放下动物的图块 = 进入 S3 重新放这只（落下后那只移过去，不新增）",
+      "to": "前态",
+      "emulator": "模拟器可验证"
+    },
+    {
+      "id": "I4",
+      "name": "拖动",
+      "trigger": "捏住动物并移动：只看位移，超过约 2 cm 才进 S9（绝不按按住时长判定——模拟器一次捏合要按住 1.8–2.5 s 才采得到）。射线通道：动物跟射线与地板交点平移；眼手通道：复用空间尺「dragAmount → 指向线」换算（手每动 1 cm 指向线约转 1.2°），再与地板求交",
+      "to": "S9 → 前态",
+      "emulator": "通路模拟器可验证；模拟器拖动事件有 1.5–2 s 拖尾，手感真机依赖"
+    },
+    {
+      "id": "I5",
+      "name": "点动物 → 转身 + 信息卡",
+      "trigger": "点动物包围盒（位移 < 2 cm 的松手算点）：转身 + 反应动画 + 叫声 + 信息卡",
+      "to": "S5",
+      "emulator": "模拟器可验证"
+    },
+    {
+      "id": "I6",
+      "name": "转 90°",
+      "trigger": "信息卡 ⟳",
+      "to": "S5",
+      "emulator": "模拟器可验证"
+    },
+    {
+      "id": "I7",
+      "name": "装进房间 / 真实 1:1",
+      "trigger": "信息卡比例分段（只在该动物超高或超长时出现）",
+      "to": "S7 / S6",
+      "emulator": "模拟器可验证（模拟器有 8 块 CEILING 平面，取最低）"
+    },
+    {
+      "id": "I8",
+      "name": "送回 / 清空",
+      "trigger": "信息卡 ↩ 移除一只；顶栏 🗑 移除全部（不确认，可直接重放）",
+      "to": "S2 / S4",
+      "emulator": "模拟器可验证"
+    },
+    {
+      "id": "I9",
+      "name": "第三只替换",
+      "trigger": "已有两只时放第三只",
+      "to": "S8",
+      "emulator": "模拟器可验证"
+    },
+    {
+      "id": "I10",
+      "name": "语言",
+      "trigger": "顶栏 [中 | EN]",
+      "to": "S11",
+      "emulator": "模拟器可验证"
+    },
+    {
+      "id": "I11",
+      "name": "身高读取",
+      "trigger": "自动：最近 10 s 内最大头显高度 + 0.10 m，钳制 1.00–2.10 m",
+      "to": "—",
+      "emulator": "模拟器可验证数值通路；准确性真机依赖"
+    },
+    {
+      "id": "I12",
+      "name": "天花板检查",
+      "trigger": "放下 / 缩放切换 / 平面更新时检查两项：高——topM 与天花板净高（最低 CEILING − FLOOR）；长——体长与 FLOOR 多边形沿动物吻尾轴的跨度（拿不到则用最长边）。没有 CEILING 平面则去掉高这一项（不显示文案，不报错）。装进房间的 n = ceil(max(各有效项))，各项 = topM / max(净高 − 0.2, 0.3) 与 体长 / max(跨度 − 0.4, 0.3)，n 钳制 2–10；选「装进房间」后把动物沿体长轴挪进 FLOOR 多边形内",
+      "to": "S6",
+      "emulator": "模拟器可验证"
+    },
+    {
+      "id": "I13",
+      "name": "叫声",
+      "trigger": "I5 时播一次该动物的 CC0 音效（ObjectAudioComponent，本机 6.1 文档可查）；不加静音键，跟随系统音量",
+      "to": "—",
+      "emulator": "模拟器出声未确认，按日志验证播放调用；听感真机依赖"
+    },
+    {
+      "id": "I14",
+      "name": "进入全空间",
+      "trigger": "共享空间里点图块 → openStage(Mixed)；Allowed → S1 找地板 → 找到后自动进 S3 放刚才那只；NotAllowed / Error → 回 S0，提示行 error「没能进入全空间，请再试一次」",
+      "to": "S13 → S1 → S3",
+      "emulator": "模拟器可验证（openStage 返回值打日志）"
+    },
+    {
+      "id": "I15",
+      "name": "退出全空间",
+      "trigger": "图鉴窗顶栏 [退出全空间]（或系统退出 / 退后台）→ closeStage，房间里的动物收起，不确认（重放成本低）",
+      "to": "S0",
+      "emulator": "模拟器可验证"
+    }
+  ],
+  "palette": {
+    "theme": "SpatialUI vibrant + 根面 Material.Regular 玻璃；只在领域内容（卷尺、剪影、天花板线、图块剪影）用品牌色",
+    "colorScheme": {
+      "fillPrimary": "inherit",
+      "fillSecondary": "inherit",
+      "fillTertiary": "inherit",
+      "fillLight": "inherit",
+      "labelPrimary": "inherit",
+      "labelPrimaryLight": "inherit",
+      "labelSecondary": "inherit",
+      "labelTertiary": "inherit",
+      "labelQuaternary": "inherit",
+      "lightenHover": "inherit",
+      "lightenPressed": "inherit",
+      "error": "#FF5F52",
+      "alert": "#FF8A1F",
+      "passable": "#7CF2A3",
+      "interaction": "#FFD24A",
+      "dividerLine": "inherit"
+    },
+    "brandTokens": {
+      "tapeYellow": "#FFD24A",
+      "tapeInk": "#2A2108",
+      "youCyan": "#7FD8FF",
+      "ceilingAlert": "#FF8A1F",
+      "silhouetteInk": "rgba(255,255,255,.88)",
+      "ghostFill": "rgba(255,210,74,.18)"
+    },
+    "semantic": [
+      {
+        "status": "选中 / 可放下",
+        "color": "interaction（卷尺黄）",
+        "cue": "图块外环 + 地板幽灵",
+        "copy": "点一下地板放下"
+      },
+      {
+        "status": "已放下",
+        "color": "passable",
+        "cue": "图块 ✓ 小点",
+        "copy": "—"
+      },
+      {
+        "status": "超过天花板 / 缩小显示",
+        "color": "alert",
+        "cue": "虚线框 / 1:n 徽章",
+        "copy": "比你的房间还高 1.4 m / 1:2 缩小显示"
+      },
+      {
+        "status": "你",
+        "color": "youCyan",
+        "cue": "人形剪影",
+        "copy": "你 1.68 m"
+      },
+      {
+        "status": "错误",
+        "color": "error",
+        "cue": "⚠",
+        "copy": "没找到地板"
+      }
+    ]
+  },
+  "typography": {
+    "font": "Noto Sans + Noto Sans SC（系统 / 应用内打包）",
+    "roles": {
+      "titleLarge": "20/26 SemiBold，信息卡名字",
+      "titleMedium": "16/20 SemiBold，窗标题、尺寸签名字",
+      "titleSmall": "14/18 SemiBold，图块名字",
+      "bodyMedium": "14/18 Medium，提示行、数据行、冷知识",
+      "labelMedium": "12/16 SemiBold，体长标签、学名、「你 1.68 m」"
+    },
+    "numerals": "数字一律等宽数字（tabular）",
+    "rule": "中文 ≤ 17 sp 一律 Medium"
+  },
+  "spatialUiMap": {
+    "theme": "PicoTheme(colorScheme = vibrant + 上表 4 个覆盖)",
+    "languageToggle": "sui-segment-control（中 / EN）",
+    "clearAll": "sui-icon-button 🗑",
+    "tiles": "自定义可点图块（SpatialUI 没有 Card 组件）：圆角 20 dp、fillTertiary 底、spatialHoverEffect 悬停、PicoTheme 文字角色；块内剪影是领域内容矢量图",
+    "hintLine": "sui-text bodyMedium + sui-circular-progress（S1）",
+    "retry": "sui-button small（S10）",
+    "infoClose": "sui-icon-button ×",
+    "infoActions": "sui-icon-button ⟳ / ↩",
+    "scaleSegment": "sui-segment-control（真实 1:1 / 装进房间 1:n）",
+    "badges": "sui-chip small（1:n 缩小显示、比你的房间还高）",
+    "custom": "动物剪影图标、卷尺、「你」剪影、天花板线、幽灵 = 3D 实体或自定义矢量（领域内容，不是控件）",
+    "forbidden": "只用 SpatialUI（com.pico.spatial.ui.*）组件与 PicoTheme；不引入任何非 SpatialUI 的 Compose 组件库",
+    "exitFull": "sui-button small（退出全空间，全空间时在图鉴窗顶栏）"
+  },
+  "tags": {
+    "contentType": "应用",
+    "contentTags": [
+      "学习与文化",
+      "MR 空间感知",
+      "亲子",
+      "动物",
+      "恐龙",
+      "科普"
+    ],
+    "featureTags": [
+      "Shared Space 窗口",
+      "Full Space Mixed Stage 透视",
+      "地板平面放置",
+      "天花板平面检测",
+      "头显高度",
+      "骨骼动画",
+      "地面阴影",
+      "中英双语",
+      "离线"
+    ]
+  },
+  "bilingual": "中文 / English 全量；默认跟随系统语言，顶栏可切；动物数据两种语言各一份（见 roster）",
+  "offline": "完全离线；不联网、不需要账号、不需要 API key；不保存任何数据（每次打开是空房间），中国区可用",
+  "debugHooks": "研发站加 debug 广播（同 Perch / 千里眼做法）：room=S0|S13|S1|S2|S4|S8|S10、place=<animalId>[,x,z]、flag=tooBig|scaleN|card、ceiling=<m>、height=<m>、slowload=1、freeze=1（暂停 3 s 转回与 3 s 提示的计时，2–4 fps 下也截得到）；状态上报同时报两层（roomState + 各动物标记），QA 按 stateModel.qaCombos 截图",
+  "verification": {
+    "emulatorCanVerify": [
+      "共享空间图鉴 → 进入全空间 → 退出全空间（openStage / closeStage 返回值）",
+      "找地板 / 无地板",
+      "8 只放置与卷尺读数",
+      "「你」剪影高度通路",
+      "信息卡与转身反应",
+      "转 90°",
+      "天花板 / 墙长度检查与 1:n",
+      "两只与第三只替换",
+      "拖动通路",
+      "中英切换",
+      "加载中（slowload）"
+    ],
+    "deviceOnly": [
+      "真实房间里 1:1 尺度观感",
+      "站 / 坐时身高估计准确度",
+      "真机空间数据授权弹窗（未确认）",
+      "叫声听感（模拟器出声未确认）",
+      "眼手拖动手感（模拟器拖尾 1.5–2 s）",
+      "写实模型 / 白模在真实房间里的观感",
+      "进入全空间后本应用窗口是否保留可点（未确认接口，模拟器也可先 spike）"
+    ]
+  },
+  "drop": [
+    "相机光照 / 阴影匹配（只用 GroundShadowComponent）",
+    "门户叙事与多结局",
+    "内购解锁",
+    "养成 / 喂食（与 Pengu 划清）",
+    "双手缩放（与「真实比例」冲突，仅保留 1:n 装进房间）"
+  ],
+  "changes": [
+    "v1.2（门 B 改，2026-10-21）：容器改为 ON_PLAIN 图鉴窗 + 次级 Mixed Stage；骨架 D → B；新增状态 S0 / S13、交互 I14 进入全空间 / I15 退出全空间；图鉴窗顶栏全空间时加 [退出全空间]；保留窗口接口未确认 + 退路",
+    "v1.1（门 B 改，2026-10-21）：模型写实优先 + 真实比例白模占位；预算 2–5 万面 / 2K"
+  ],
+  "reviewNotes": [
+    "2026-10-20 产品角色：port.keep「眼神跟随」改为「点一下转身看你 3 s 再转回侧身」——持续跟随会让动物正对你，体长被透视压缩，破坏本应用唯一的价值（看清有多长）。门 B 可推翻",
+    "2026-10-20 产品角色：port.spatialize「小房间自动 1:n」改为「默认 1:1 穿过天花板 + 信息卡里手动「装进房间」」——应用名叫真实比例，第一眼必须是真的；自动缩小会让霸王龙一出场就是假的。门 B 可推翻",
+    "2026-10-20 产品角色：双手缩放从交互里去掉（与真实比例冲突），旋转改为信息卡 ⟳ 90°（模拟器可验证、孩子会用）",
+    "2026-10-20 产品角色：Quaternius 官网 pack 页写 CC0（候选里写的是 QAL v1.0，以 pack 页为准，两者都允许商用）；三个 pack 页都没列出具体动物名，8 只的模型来源标「未确认」，由研发站下载后核对",
+    "2026-10-20 设计评审第 1 轮（reviewer 子 agent，对照 Google 3D 动物 / Encounter Dinosaurs / 空间尺实测）pass-with-fixes，12 条全部采纳：①眼手无悬停→幽灵只在射线通道，眼手点地板直接落；②加 floorCatcher、S3 期间动物不可点、隐藏实体停用；③推远改为 体宽/2+0.5 m；④拖动只看位移 >2 cm，眼手用 dragAmount 换算；⑤状态拆两层（房间态 × 动物标记）并补齐 S5/S7 出口；⑥加 lengthKind 与等比缩放规则；⑦天花板用 topM；⑧加墙长度检查，S6 改为「超出房间」，n 取高、长比较大者；⑨身高取最近 10 s；⑩预加载 + 新增 S12 加载中；⑪加叫声 I13、信息卡偏离视线 25°；⑫排序、柴犬 1 岁、灰狼冷知识、I3 优先级、debug freeze=1",
+    "2026-10-20 设计评审第 2 轮（最后一轮）pass-with-fixes，6 条全部采纳：「你」剪影改站吻端外 0.4 m 同一深度；卷尺止于 lengthKind 终点 + 新增 lengthRefM 缩放依据；stateModel.hintPriority、S4.reach、S8 补 🗑 出口；I3 与 animal.budget 统一、S3 补重放出口；n 公式缺项 / 分母钳制 / 挪进地板、I7 文案；删 S5「点空处」与旧文案。评审环结束，无未决项",
+    "2026-10-21 门 B 评论（用户）：模型要写实，找开源，找不到先用白模。已改：新增 modelSourcing（Sketchfab CC0/CC BY → Smithsonian 3D CC0 → MorphoSource → Objaverse，Quaternius 降为临时占位）、白模占位规则、预算改为每只 2–5 万面 / 贴图 ≤ 2K / 同屏 ≤ 10 万、预加载上限与兜底、risks；样稿剪影换成真实比例白模示意并重新发布",
+    "2026-10-21 门 B 评论（用户）：「展示动物的时候需要是 full space 模式，面板是 shared space」。已改容器决定（ON_PLAIN + 次级 Mixed Stage，骨架 B）、状态模型（S0 / S13）、进出全空间交互（I14 / I15）、生命周期；窗口保留进全空间的接口文档未写，标未确认并给退路。样稿 v1.2 用虚线框标出变化处",
+    "2026-10-21 研发站：8 只均找到写实 CC BY 4.0 模型（Objaverse 镜像的 Sketchfab，署名见项目 README）；lengthRefM 按引擎实测包围盒回写；高度偏差 >10% 的 6 只记偏差「需换模型」，保持等比缩放"
+  ],
+  "stateModel": {
+    "rule": "两层组合：房间态 roomState ∈ {S0 共享空间图鉴, S13 进入全空间中, S1 找地板, S10 找不到地板, S2 全空间空房间, S4 一只, S8 两只}；S0 / S13 在共享空间，其余在全空间。每只动物带标记 {tooBig, scaleN, dragging, cardOpen}。S5 / S6 / S7 / S9 是叠加画面；S3 / S12 是放置过程的临时态；S11 是语言，可与任何态叠加。出口里的「前态」= 进入前的组合；任何全空间态按 [退出全空间] → S0",
+    "qaCombos": [
+      "S0",
+      "S13",
+      "S1",
+      "S2",
+      "S3",
+      "S4（马）",
+      "S5（柴犬）",
+      "S4+S6（霸王龙）",
+      "S4+S6（三角龙，超高+超长）",
+      "S4+S7（霸王龙 1:3）",
+      "S8（大白鲨+柴犬）",
+      "S8+S6（霸王龙+柴犬）",
+      "S9",
+      "S10",
+      "S11（S2 + S5）",
+      "S12"
+    ],
+    "hintPriority": "S13 > S10 > S1 > S12 > S3 > S9 > 第三只替换的 3 s 提示 > S7 > S6 > S5 > S8 > S4 > S2；共享空间只有 S0"
+  },
+  "modelSourcing": "模型要写实（门 B 用户评论 2026-10-21）。找模型按优先级：① Sketchfab：筛 Downloadable，许可 CC0 或 CC BY（写实扫描 / 手工模型多，常带骨骼与动画，可下 glTF；CC BY 在「关于」署名）；② Smithsonian 3D（3d.si.edu）Open Access 部分 CC0：真实标本与恐龙骨架扫描，多为静态无动画；③ MorphoSource：科研扫描精度高，许可逐个核，禁商用的不用；④ Objaverse：Sketchfab 来源合集，便于批量找，许可以原作者为准；⑤ Quaternius / Poly Pizza CC0 低多边形：只作临时占位。找不到写实模型的动物先用「真实比例白模」：无贴图白色哑光材质，体型、肩高 / 髋高、头身比按 roster 真实数据建，拿到正式模型直接替换（实体结构与缩放规则不变）。下载模型的单位常不准：一律按包围盒统一缩放到 lengthM / topM，不信文件自带尺寸",
+  "risks": [
+    "写实模型带骨骼动画的不多：静态扫描（如 Smithsonian）只能不播动画，反应改为只转身 + 叫声",
+    "写实模型面数高，减面到 5 万以内会损失细节；模拟器 2–4 fps 下加载更慢，靠预加载 + S12",
+    "许可逐个核：CC BY 署名清单写进「关于」，CC BY-SA / 非商用不用"
+  ]
+}

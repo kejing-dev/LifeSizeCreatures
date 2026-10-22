@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launcher background: jungle green, used by no other factory app (tools/make_icon.py). -->
+    <color name="ic_launcher_background">#2E6B4F</color>
+</resources>

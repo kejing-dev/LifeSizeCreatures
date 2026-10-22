@@ -1,0 +1,6 @@
+Noto Sans SC (variable), subset for Spatial Ruler. A Modified Version under the SIL OFL 1.1.
+source: NotoSansSC-VF.ttf  Version 2.04;241114210130;non-release
+axes kept: [('wght', 100.0, 100.0, 900.0)]
+glyphs: 335  characters: 262
+characters: °±·×÷–—‘’“”…‰′″№←↑→↓↔↕≈■□▲△◆○◌●✓　、。〈〉《》「」『』【】一七万三上下不与世两个中么九也了二五亚产人仍以会伶住体你例先光入全八公六关养再出到动北十千厘原取古只可后含和四回图在地垩壁多大头好字季孩它实家寸小就尺尾岁差已带年度影得戈房手找把拖捏换掉放数日是显晚替最有期本来松板林柴根森次欧正每比毫没洲海消清温灰点牙物犬狼猛王环球生用电画界白百的盖盗看真着睡示空站米系纪统缩置美肩能脱腿膝英草落蒙蕉装西觉角设试请起身转边迅近还这进连退送选那部里重鉴长闭间零霸顾颗香马驯骨髋高鲨鹿龙！（），：；？｜～
+not in the source font (left to the system fallback): U+270B U+29B8
