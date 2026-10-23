@@ -315,6 +315,10 @@ object CreatureStore {
             s.copy(animals = s.animals.map { if (it.uid == uid) it.copy(yaw = it.yaw + (Math.PI / 2).toFloat()) else it })
         }
 
+    /** v0.1.1: the thumbstick turned an animal by [delta] rad (committed when the stick is let go). */
+    fun turnedBy(uid: Int, delta: Float) =
+        update { s -> s.copy(animals = s.animals.map { if (it.uid == uid) it.copy(yaw = it.yaw + delta) else it }) }
+
     fun sendBackClicked() =
         update { s ->
             val uid = s.cardUid ?: return@update s

@@ -27,6 +27,9 @@ object Probe {
 
         /** Show the placing ghost at Stage (x, z) as if a controller ray pointed there. */
         fun ghostAt(x: Float, z: Float)
+
+        /** Hold the thumbstick at X = [x] for [ms], as if a controller reported it (v0.1.1 turn). */
+        fun stick(x: Float, ms: Long)
     }
 
     @Volatile var host: Host? = null

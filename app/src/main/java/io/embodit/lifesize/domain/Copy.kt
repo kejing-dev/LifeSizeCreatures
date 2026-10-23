@@ -33,6 +33,9 @@ class Copy(val lang: Lang) {
     val hintOne = t("点动物看看它 · 捏住可拖动", "Tap an animal to meet it · pinch and drag to move it")
     val hintEmpty = t("选一只动物", "Pick an animal")
 
+    /** v0.1.1: second line under the hint while animals stand in the room. */
+    val hintStick = t("↔ 手柄摇杆左右：转动物", "↔ Thumbstick left / right: turn the animal")
+
     fun hintReplaced(name: String) = t("先放的${name}回图鉴了", "The $name went back to the guide")
 
     // ---- size tag, card, labels

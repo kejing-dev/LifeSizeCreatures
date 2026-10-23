@@ -106,4 +106,20 @@ class RoomRulesTest {
         assertEquals(Copy(Lang.EN).hintShared, CreatureState(lang = Lang.EN).hint().text)
         assertEquals(Copy(Lang.ZH).hintNoFloor, base.copy(phase = Phase.NO_FLOOR).hint().text)
     }
+
+    @Test
+    fun stickTurnRateHasDeadZoneRampAndDirection() {
+        assertEquals(0f, RoomRules.stickTurnRate(0f), 0f)
+        assertEquals(0f, RoomRules.stickTurnRate(0.15f), 0f)
+        assertEquals(0f, RoomRules.stickTurnRate(-0.1f), 0f)
+        assertEquals(0f, RoomRules.stickTurnRate(Float.NaN), 0f)
+        // full push: 60 degrees per second, right = clockwise from above = yaw decreasing
+        assertEquals(-RoomRules.STICK_MAX_RAD_S, RoomRules.stickTurnRate(1f), 1e-6f)
+        assertEquals(RoomRules.STICK_MAX_RAD_S, RoomRules.stickTurnRate(-1f), 1e-6f)
+        assertEquals(-RoomRules.STICK_MAX_RAD_S, RoomRules.stickTurnRate(1.4f), 1e-6f)
+        // quadratic ramp: half way past the dead zone gives a quarter of the speed
+        val half = RoomRules.STICK_DEADZONE + (1f - RoomRules.STICK_DEADZONE) / 2f
+        assertEquals(-RoomRules.STICK_MAX_RAD_S / 4f, RoomRules.stickTurnRate(half), 1e-5f)
+        assertTrue(abs(RoomRules.stickTurnRate(0.3f)) < abs(RoomRules.stickTurnRate(0.6f)))
+    }
 }

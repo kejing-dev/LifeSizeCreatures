@@ -1,6 +1,6 @@
 # Life-size Creatures (真实比例动物)
 
-PICO OS 6 spatial app, Kotlin, PICO Spatial SDK 6.1.9 (BOM), package `io.embodit.lifesize`. Factory app
+PICO OS 6 spatial app (v0.1.1), Kotlin, PICO Spatial SDK 6.1.9 (BOM), package `io.embodit.lifesize`. Factory app
 `life-size-creatures`, skeleton B. Design package (binding):
 `C:\Users\Admin\Downloads\spatial-app-factory\apps\life-size-creatures\design-package.json` (states S0–S13,
 interactions I1–I15, panels, entities). Built from Spatial Ruler / Qianliyan pieces (panel pool, plane tracker,
@@ -62,6 +62,7 @@ or `tools/dev.sh cmd <name> [arg]`. Every command logs `CMD ok|fail <name>` unde
 | `freeze 1|0` | timed changes wait: the look-back after 3 s, the 3 s replacement hint, a debug drag's release |
 | `drag <i>[,dx,dz,ms]` | drag the i-th animal (S9) |
 | `ghost <ahead>` / `ghostoff` | show the placing ghost as if a controller ray hit the floor ahead (S3) |
+| `stick <x>[,ms]` | hold the thumbstick at X = x (-1..1, right +) for ms (default 1500): turns the card's animal, else the one looked at (v0.1.1) |
 | `dump` / `pose` / `panels` | `DUMP` line (state, hint, floor / ceiling, you), `ANIMAL` lines (center, n, fit, rendered box), panel slots |
 
 Ids: `shiba wolf velociraptor stag horse shark triceratops trex`.
@@ -109,6 +110,24 @@ Real input (gaze + pinch) works on the guide window, the floor and the animals: 
   black (the Qianliyan emulator flash): shoot S0 at least 25 s after start, take two shots, use the second.
 - Real gaze + pinch verified on: a guide tile (S0 -> S13 -> S1 -> S3), the floor catcher (placing), an animal
   (card + turn), drag. Coordinates: screenshot px x 0.84375 = harness px.
+
+## Thumbstick turn (v0.1.1, Swan device feedback "加个 joystick X rotate animal")
+
+- Either controller's thumbstick X turns one animal about its vertical axis (through the middle of its length):
+  the animal whose card is open, else the one nearest to where the viewer looks. Dead zone 0.15, quadratic ramp to
+  60 degrees per second, the rate follows the stick with a 0.12 s time constant; right = clockwise from above.
+  `RoomRules.stickTurnRate` (unit-tested), `RoomScene.stepStick`.
+- Input: `ControllerTrackingProvider.addControllerActionListener` (SDK doc "Obtain controller input actions"),
+  registered in `ControllerRay.start` and removed in `stop`. The callback only stores X; the frame system reads it.
+- The turn lives in `AnimalView.stickYaw` while the stick is held (ECS only, no recomposition) and reaches the
+  store once when it has come to rest (`CreatureStore.turnedBy`), like the drag. A drag of the same animal commits it.
+- The guide shows a second hint line 「↔ 手柄摇杆左右：转动物」 while animals stand in the room.
+- Emulator: in controller mode (`tools/harness/emu_mode.ps1 -Mode right -Avd PICO_6_1_Factory2 -Serial emulator-5562`,
+  then a few `emu.sh move`) the provider turns `SUPPORTED` and the listener fires about 120 times a second (frame
+  log `controller(support=... actions=... x=...)`), but the stick keys of the emulator's controller map (right stick
+  L/J, left stick D/A) only react to the real keyboard: posted WM_KEYDOWN does not move them, and SendInput is not
+  allowed on this shared desktop. Use `stick <x>` for captures; the real stick is checked on the headset.
+- The emulator idles at 2-4 fps: the turn steps by wall-clock time (capped at 0.5 s a frame).
 
 ## App icon
 

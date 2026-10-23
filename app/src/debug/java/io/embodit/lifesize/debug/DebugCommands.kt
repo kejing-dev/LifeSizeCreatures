@@ -27,6 +27,7 @@ import io.embodit.lifesize.ui.room.debug.Probe
  *   freeze 1|0                    timed changes wait (look-back, the 3 s hint, a debug drag's release)
  *   drag <i>[,dx,dz,ms]           drag the i-th animal (default 0.8 m along x over 3 s; S9)
  *   ghost <ahead> | ghostoff      the placing ghost as if a controller ray hit the floor ahead
+ *   stick <x>[,ms]                hold the thumbstick at X = x (-1..1, right +) for ms (default 1500): turns an animal
  *   dump | pose | panels
  */
 object DebugCommands {
@@ -82,6 +83,10 @@ object DebugCommands {
                 host.ghostAt(x, z)
             }
             "ghostoff" -> (Probe.host as? RoomScene)?.clearDebugGhost()
+            "stick" -> {
+                val host = Probe.host ?: return false
+                host.stick(first?.toFloatOrNull() ?: return false, (nums.getOrNull(0) ?: 1500f).toLong())
+            }
             "room" -> room(first ?: return false)
             else -> return false
         }

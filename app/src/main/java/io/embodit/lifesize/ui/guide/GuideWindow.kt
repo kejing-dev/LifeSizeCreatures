@@ -95,6 +95,7 @@ fun GuideWindow() {
         TileGrid(state)
         Spacer(Modifier.height(8.dp))
         HintLine(state)
+        StickLine(state)
     }
 }
 
@@ -314,6 +315,22 @@ private fun silhouetteOf(id: String): Int =
         "triceratops" -> R.drawable.sil_triceratops
         else -> R.drawable.sil_trex
     }
+
+/** v0.1.1: how to turn an animal with the controller, while at least one stands in the room. */
+@Composable
+private fun StickLine(state: CreatureState) {
+    if (state.phase != Phase.ROOM || state.animals.isEmpty()) return
+    Text(
+        text = Copy(state.lang).hintStick,
+        style = LifeType.label,
+        color = PicoTheme.colorScheme.labelSecondary,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.fillMaxWidth().height(StickLineHeight),
+    )
+}
+
+private val StickLineHeight = 20.dp
 
 @Composable
 private fun HintLine(state: CreatureState) {

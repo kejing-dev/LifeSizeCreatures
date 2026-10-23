@@ -79,6 +79,25 @@ internal class AnimalView(
     var opacity = 1f
     var dragCenter: Vec3? = null
 
+    /** Thumbstick turn not yet in the store (added to the placed yaw; the scene commits it on release). */
+    var stickYaw = 0f
+    private var committedStick = 0f
+    private var commitBase: Float? = null
+
+    /** The part of [stickYaw] not handed to the store yet (what a commit may send). */
+    val uncommittedStick: Float
+        get() = stickYaw - committedStick
+
+    /**
+     * [delta] of [stickYaw] was handed to the store while the placed yaw was [base]; it is dropped once the
+     * store's yaw arrives in [apply]. Commits before that arrival add up against the first base (QA q2-1:
+     * a second commit used to resend the first one).
+     */
+    fun stickCommitted(base: Float, delta: Float) {
+        if (commitBase == null) commitBase = base
+        committedStick += delta
+    }
+
     init {
         parent.addChild(root)
         root.addChild(tape)
@@ -214,8 +233,14 @@ internal class AnimalView(
     fun apply(p: Placed, floorY: Float, ceilingY: Float?, showCeiling: Boolean, interactable: Boolean) {
         val first = placed == null
         placed = p
+        val base = commitBase
+        if (base != null && p.yaw != base) {
+            stickYaw -= committedStick
+            committedStick = 0f
+            commitBase = null
+        }
         val center = dragCenter ?: p.center
-        root.setLocal(position = Vec3(center.x, floorY, center.z), rotation = Quat4.axisAngle(Vec3.UP, p.yaw))
+        root.setLocal(position = Vec3(center.x, floorY, center.z), rotation = Quat4.axisAngle(Vec3.UP, p.yaw + stickYaw))
         val k = appear.coerceAtLeast(MIN_APPEAR) / p.scaleN
         pose.setLocal(position = Vec3(pivotX * k, species.floatM / p.scaleN, 0f), rotation = Quat4.axisAngle(Vec3.UP, lookYaw), scale = Vec3(k, k, k))
         drawTape(1f / p.scaleN)

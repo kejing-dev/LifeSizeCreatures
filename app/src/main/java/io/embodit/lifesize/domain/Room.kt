@@ -77,6 +77,23 @@ object RoomRules {
     const val FLASH_MS = 3_000L
     const val DRAG_START_M = 0.02f
 
+    // v0.1.1 (device feedback): the thumbstick's X axis turns the animal about its vertical axis
+    const val STICK_DEADZONE = 0.15f
+    const val STICK_MAX_RAD_S = 1.0471976f // 60 degrees per second at full push
+    const val STICK_SMOOTH_S = 0.12f // the turn rate follows the stick with this time constant
+
+    /**
+     * Thumbstick X -> turn rate in rad/s: nothing inside the dead zone, then a quadratic ramp to
+     * [STICK_MAX_RAD_S] (fine control near the centre). Pushing right turns the animal clockwise seen
+     * from above (the yaw decreases).
+     */
+    fun stickTurnRate(x: Float): Float {
+        val a = abs(x)
+        if (x.isNaN() || a <= STICK_DEADZONE) return 0f
+        val t = ((a - STICK_DEADZONE) / (1f - STICK_DEADZONE)).coerceAtMost(1f)
+        return (if (x > 0f) -1f else 1f) * t * t * STICK_MAX_RAD_S
+    }
+
     /** I12: height (topM against the net height) and length (body length against the floor span along the body). */
     fun fit(p: Placed, room: RoomGeometry?): Fit {
         val s = p.species

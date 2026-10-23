@@ -148,6 +148,13 @@ class RoomScene : CreatureStore.SceneHost, Probe.Host {
     private var drag: Drag? = null
     private var lastDragEndMs = 0L
 
+    // ---- thumbstick turn (v0.1.1)
+    private var stickUid: Int? = null
+    private var stickRate = 0f
+    private var lastFrameMs = 0L
+    private var debugStick = 0f
+    private var debugStickUntilMs = 0L
+
     // =========================================================================================
     // lifecycle
     // =========================================================================================
@@ -444,6 +451,7 @@ class RoomScene : CreatureStore.SceneHost, Probe.Host {
         }
         animate(now)
         stepDrag()
+        stepStick(now)
         applyAll(now)
         placeYou()
         placeGhost()
@@ -451,7 +459,7 @@ class RoomScene : CreatureStore.SceneHost, Probe.Host {
         rig.faceViewer(head.position)
         if (now - lastLogMs > LOG_MS) {
             lastLogMs = now
-            LifeLog.i("FRAME n=$frames head=${LifeLog.pos(head.position)} state=${state.roomStateId} animals=${views.size} templates=${templates.keys.sorted()}")
+            LifeLog.i("FRAME n=$frames head=${LifeLog.pos(head.position)} state=${state.roomStateId} animals=${views.size} templates=${templates.keys.sorted()} controller(${controller.status()})")
         }
     }
 
@@ -516,6 +524,72 @@ class RoomScene : CreatureStore.SceneHost, Probe.Host {
         LifeLog.i(String.format(Locale.US, "REACT %s#%d turn=%.0f deg clip=%s", p.speciesId, uid, Math.toDegrees(target.toDouble()), p.species.model.reactClip ?: "none"))
     }
 
+    // ---- thumbstick turn (v0.1.1, device feedback "加个 joystick X rotate animal")
+
+    /**
+     * Per frame: the stick's X turns one animal about its vertical axis (through the middle of its length).
+     * The turn lives in the view ([AnimalView.stickYaw]) while the stick is held and reaches the store once,
+     * when the turn has come to rest, so the guide does not recompose every frame.
+     */
+    private fun stepStick(now: Long) {
+        // wall-clock step (the emulator idles at 2-4 fps); capped so that a long stall cannot spin the animal
+        val dt = if (lastFrameMs == 0L) 0f else ((now - lastFrameMs) / 1000f).coerceIn(0f, 0.5f)
+        lastFrameMs = now
+        val x = if (now < debugStickUntilMs) debugStick else controller.stick(now)
+        val target = if (state.phase == Phase.ROOM && state.placing == null) RoomRules.stickTurnRate(x) else 0f
+        if (stickUid == null) {
+            if (target == 0f) return
+            val next = stickTarget() ?: return
+            // an animal being dragged does not start turning (the drag committed its turn)
+            if (state.draggingUid == next || drag?.uid == next) return
+            stickUid = next
+            stickRate = 0f
+            LifeLog.i(String.format(Locale.US, "STICK start uid=%d x=%.2f", stickUid, x))
+        }
+        val uid = stickUid ?: return
+        val v = views[uid]
+        if (v == null || state.animal(uid) == null) {
+            stickUid = null
+            stickRate = 0f
+            return
+        }
+        if (state.draggingUid == uid || drag?.uid == uid) {
+            commitStick(uid, v)
+            return
+        }
+        stickRate += (target - stickRate) * (dt / RoomRules.STICK_SMOOTH_S).coerceAtMost(1f)
+        v.stickYaw += stickRate * dt
+        if (target == 0f && abs(stickRate) < STICK_REST_RAD_S) commitStick(uid, v)
+    }
+
+    private fun commitStick(uid: Int, v: AnimalView) {
+        stickUid = null
+        stickRate = 0f
+        val p = state.animal(uid) ?: return
+        val delta = v.uncommittedStick
+        LifeLog.i(String.format(Locale.US, "STICK end %s#%d turned=%.0f deg", p.speciesId, uid, Math.toDegrees(delta.toDouble())))
+        if (abs(delta) < 1e-4f) return
+        v.stickCommitted(p.yaw, delta)
+        CreatureStore.turnedBy(uid, delta)
+    }
+
+    /** The animal whose card is open, else the one nearest to where the viewer looks. */
+    private fun stickTarget(): Int? {
+        state.animal(state.cardUid)?.let { if (views[it.uid]?.calibrated == true) return it.uid }
+        val f = Vec3(head.forward.x, 0f, head.forward.z).let { if (it.length < 1e-3f) Vec3(0f, 0f, -1f) else it.normalized() }
+        return state.animals
+            .filter { views[it.uid]?.calibrated == true }
+            .maxByOrNull { p ->
+                val to = Vec3(p.center.x - head.position.x, 0f, p.center.z - head.position.z)
+                if (to.length < 1e-3f) 1f else (to.x * f.x + to.z * f.z) / to.length
+            }?.uid
+    }
+
+    override fun stick(x: Float, ms: Long) {
+        debugStick = x
+        debugStickUntilMs = SystemClock.elapsedRealtime() + ms
+    }
+
     // ---- the "you" figure (design youSilhouette)
 
     private fun placeYou() {
@@ -526,7 +600,7 @@ class RoomScene : CreatureStore.SceneHost, Probe.Host {
             if (y.enabled) y.enabled = false
             return
         }
-        val spot = RoomRules.youSpot(near.first.copy(center = near.second.dragCenter ?: near.first.center), state.animals)
+        val spot = RoomRules.youSpot(near.first.copy(center = near.second.dragCenter ?: near.first.center, yaw = near.first.yaw + near.second.stickYaw), state.animals)
         val h = state.youHeightM
         val to = Vec3(head.position.x - spot.x, 0f, head.position.z - spot.z)
         val yaw = if (to.length < 1e-3f) 0f else atan2(to.x, to.z)
@@ -773,6 +847,7 @@ class RoomScene : CreatureStore.SceneHost, Probe.Host {
         private const val CATCHER_THICK_M = 0.02f
         private const val REPLACE_M = 0.3f
         private const val TAP_AFTER_DRAG_MS = 400L
+        private const val STICK_REST_RAD_S = 0.02f
         private const val DRAG_GAIN_M = 1.5f
         private const val READ_LIFT_M = 0.09f
         private const val READ_TOWARD_M = 0.06f

@@ -4,8 +4,8 @@
 
 ![A horse at true size on the floor, with a 2.4 m tape, a figure of your height and a size tag](docs/screenshots/01-horse-side-by-side.jpg)
 
-> 截图和演示视频都来自 PICO 6.1 模拟器，用调试命令驱动，**不是真实手势录像**，也没有在真机上验证过。
-> Screenshots and the demo video come from the PICO 6.1 emulator, driven by debug commands. **They are not recordings of real hand input**, and the app has not been verified on a headset yet.
+> 截图和演示视频都来自 PICO 6.1 模拟器，用调试命令驱动，**不是真实手势录像**。v0.1.2 已在 PICO Swan 头显上由用户试过，确认可用。
+> Screenshots and the demo video come from the PICO 6.1 emulator, driven by debug commands. **They are not recordings of real hand input.** v0.1.2 has been tried on a PICO Swan headset and confirmed working by the user.
 
 ## 中文
 
@@ -18,6 +18,7 @@
 - 比房间还高时，天花板上画一圈虚线，告诉你「比你的房间还高 1.4 m」；也可以在信息卡里选「装进房间」缩小显示；
 - 点动物，它转过来看你，弹出信息卡：中英名、学名、体长 / 高度 / 体重、栖息地、一句冷知识；
 - 房间里最多两只，可以捏住拖动、转 90°、送回图鉴；
+- **手柄摇杆左右推，转动物**（v0.1.1 新增）：转的是开着信息卡的那只，没开卡时转你视线最近的那只；轻推慢转，推到底每秒约 60°，松手平滑停下；图鉴底部有一行提示「↔ 手柄摇杆左右：转动物」；
 - 点「退出全空间」回到共享空间。
 
 8 只动物，从小到大：柴犬 0.7 m、灰狼 1.4 m、伶盗龙 2.0 m、马鹿 2.0 m、马 2.4 m、大白鲨 4.6 m、三角龙 8.5 m、霸王龙 12.3 m。中英双语，完全离线，不要账号，不保存任何数据。
@@ -35,6 +36,7 @@ The field guide is an ordinary window in the Shared Space, so it can sit next to
 - when it is taller than your room, a dashed line marks your ceiling and the tag says how much taller; the info card can also shrink it to fit the room;
 - tap the animal and it turns to look at you, with an info card: names in Chinese and English, Latin name, length / height / weight, habitat and one fun fact;
 - up to two animals at once; pinch to drag, turn 90°, or send one back to the guide;
+- **push a controller thumbstick left or right to turn an animal** (new in v0.1.1): it turns the animal whose info card is open, otherwise the one nearest your gaze; a light push turns slowly, a full push about 60° a second, and it eases to a stop when you let go; a hint at the foot of the guide reads "↔ thumbstick left / right: turn the animal";
 - "Exit Full Space" returns to the Shared Space.
 
 Eight animals, smallest first: Shiba Inu 0.7 m, gray wolf 1.4 m, velociraptor 2.0 m, red deer 2.0 m, horse 2.4 m, great white shark 4.6 m, triceratops 8.5 m, Tyrannosaurus rex 12.3 m. Chinese and English, fully offline, no account, nothing stored.
@@ -48,8 +50,9 @@ Package `io.embodit.lifesize` · PICO Spatial SDK 6.1.9 · all 2D UI is SpatialU
 | ![](docs/screenshots/02-field-guide-shared-space.jpg)<br>图鉴窗在共享空间 · The field guide in the Shared Space | ![](docs/screenshots/03-shiba-info-card.jpg)<br>柴犬转身 + 信息卡 · The Shiba turns to you, with its info card |
 | ![](docs/screenshots/04-shark-and-shiba.jpg)<br>大白鲨和柴犬同框 · A great white shark and a Shiba Inu | ![](docs/screenshots/05-trex-bigger-than-room.jpg)<br>霸王龙比房间还大 · The T. rex is bigger than the room |
 | ![](docs/screenshots/06-raptor-and-stag.jpg)<br>伶盗龙和马鹿 · A velociraptor and a red deer | ![](docs/screenshots/07-english.jpg)<br>英文界面 · English UI |
+| ![](docs/screenshots/08-joystick-turn.jpg)<br>摇杆推右：马从侧身转到面朝你 · Thumbstick right: the horse turns from side-on to face you | ![](docs/screenshots/09-joystick-hint.jpg)<br>图鉴底部的摇杆提示 · The thumbstick hint at the foot of the guide |
 
-演示视频 Demo video: [`docs/LifeSizeCreatures-demo.mp4`](docs/LifeSizeCreatures-demo.mp4)（53 s，1080 × 1080，无声 / no sound；模拟器 + 调试命令，非真实手势录像 / emulator + debug commands, not real hand input）。
+演示视频 Demo video: [`docs/LifeSizeCreatures-demo.mp4`](docs/LifeSizeCreatures-demo.mp4)（53 s，1080 × 1080，无声 / no sound；模拟器 + 调试命令，非真实手势录像 / emulator + debug commands, not real hand input）。视频录的是 v0.1.0，没有摇杆转动这一段。The video shows v0.1.0 and does not include the thumbstick turn.
 
 ## 安装与启动 · Install and launch
 
@@ -57,7 +60,7 @@ Package `io.embodit.lifesize` · PICO Spatial SDK 6.1.9 · all 2D UI is SpatialU
 Download the APK (debug-signed) from the Release, then:
 
 ```bash
-adb install -r LifeSizeCreatures-v0.1.0.apk
+adb install -r LifeSizeCreatures-v0.1.2.apk
 pico-cli app launch io.embodit.lifesize
 ```
 
@@ -84,6 +87,13 @@ All eight 3D models are **CC BY 4.0** (https://creativecommons.org/licenses/by/4
 
 模型的已知局限 Known model caveats: 马鹿是通用雄鹿模型，不专门是马鹿；伶盗龙是无羽毛的「电影版」；按真实体长缩放后伶盗龙比名录高 39 %、霸王龙高约 30 %，有更好的 CC0 / CC BY 模型时替换。The deer is a generic antlered stag, not specifically a red deer; the velociraptor is a featherless "movie" raptor; scaled to the true length, the raptor (+39 %) and the T. rex (about +30 %) stand taller than the roster's top height — both are flagged for replacement when better CC0 / CC BY models are found.
 
-## 还没在真机上验证 · Not yet verified on a headset
+## 已知问题 · Known issues
 
-真实房间里的尺度观感、捏取拖动手感、「你」的身高估计、地板 / 天花板识别、空间数据授权、写实模型的加载时间与帧率、半透明面板、叫声——这些只在模拟器上跑过通路，真机待验。Scale in a real room, pinch-and-drag feel, the height estimate, real floor / ceiling detection, the spatial-data permission prompt, model load time and frame rate, translucent panels and the animal call have only been exercised on the emulator.
+- 动物转到面朝你时，「你」剪影会挡在你和动物之间（剪影按设计站在动物鼻尖前 0.4 m）。When an animal turns to face you, the "you" figure stands between you and the animal (by design it stands 0.4 m beyond the snout).
+- 三角龙同时比房间高又比房间长时，尺寸签只写「还高」。When the triceratops is both taller and longer than the room, the size tag only says how much taller.
+- 尺寸签有时被图鉴窗挡住一角：系统总把窗口画在全空间内容前面，挪开图鉴窗即可。The guide window can cover a corner of a size tag, because the system draws windows in front of Full Space content; move the window aside.
+- 点动物时的叫声还没有，现在播的是系统提示音。There is no animal call yet; tapping an animal plays a system sound.
+
+## 真机 · On a headset
+
+v0.1.2 已装在 PICO Swan 上，由用户试过并确认可用（2026-10-22）。下次戴上时可以顺手再看三件事：摇杆的方向与手感；一边推摇杆一边拖同一只时开始拖那一下会不会跳；先开应用、后拿起手柄时摇杆能不能马上用。v0.1.2 has been installed on a PICO Swan and confirmed working by the user (2026-10-22). Worth a look next time: the thumbstick's direction and feel; whether an animal jumps when you start dragging it while turning it; and whether the thumbstick works straight away if you pick the controller up after the app has started.
