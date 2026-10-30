@@ -4,9 +4,9 @@
 
 | 会话 | 标题 | 行数 |
 |---|---|---|
-| `adbb566a` | [life-size-creatures] design #1 · 设计包 + 样稿 | 1075 |
 | `b7007f46` | [life-size-creatures] build #1 · 真实比例动物 | 2362 |
 | `a572c849` | [life-size-creatures] QA #1 · 真实比例动物 | 859 |
 | `f1715921` | [life-size-creatures] build #2 · 摇杆转动动物 | 1178 |
 | `bff3099d` | [life-size-creatures] QA #2 · 摇杆转动 v0.1.1 | 1088 |
+| `adbb566a` | [life-size-creatures] design #1 · 设计包 + 样稿 | 1075 |
 | `3d2ee2c1` | [life-size-creatures] showcase · 真实比例动物 第一跑 | 756 |
